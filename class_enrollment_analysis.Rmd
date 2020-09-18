@@ -1,0 +1,27 @@
+---
+title: "Class enrollment Data"
+author: "Joe Skufca"
+date: "16 Sep 2020"
+output: html_notebook
+---
+
+Prepare workspace:
+
+## Load packages
+
+```{r}
+library(tidyverse)
+library(janitor)
+library(readxl)
+```
+
+## Read the data
+
+```{r}
+dfa= read_excel("CU_ACAD_DEPT_WHEN_OFF_ENRL_17594.xls") %>% clean_names()
+```
+
+```{r}
+dfa %>% filter(catalog=="132",section=="01") %>% ggplot(aes(x=term,y=tot_enrl))+geom_col()
+```
+
