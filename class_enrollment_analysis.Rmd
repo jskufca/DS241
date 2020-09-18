@@ -13,15 +13,34 @@ Prepare workspace:
 library(tidyverse)
 library(janitor)
 library(readxl)
+library(skimr)
+library(summarytools)
 ```
 
 ## Read the data
 
 ```{r}
-dfa= read_excel("CU_ACAD_DEPT_WHEN_OFF_ENRL_17594.xls") %>% clean_names()
+dfa= read_excel("CU_ACAD_DEPT_ENRL.xlsx") %>% clean_names()
 ```
 
 ```{r}
-dfa %>% filter(catalog=="132",section=="01") %>% ggplot(aes(x=term,y=tot_enrl))+geom_col()
+skim(dfa)
 ```
+```{r}
+dfa %>% group_by(subject) %>% skim()
+```
+```{r}
+dfa %>% dfSummary()
+```
+
+
+```{r }
+dfa %>% dfSummary() %>% view()
+```
+
+
+```{r message=FALSE, warning=FALSE, results='asis'}
+print(dfSummary(dfa, graph.magnif = 0.75), method = 'render')
+```
+
 
