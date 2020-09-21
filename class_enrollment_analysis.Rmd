@@ -27,8 +27,13 @@ dfa= read_excel("CU_ACAD_DEPT_ENRL.xlsx") %>% clean_names()
 skim(dfa)
 ```
 ```{r}
-dfa %>% group_by(subject) %>% skim()
+C=dfa %>% group_by(subject) %>% skim()
 ```
+
+
+
+
+
 ```{r}
 dfa %>% dfSummary()
 ```
