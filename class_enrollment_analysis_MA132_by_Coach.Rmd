@@ -1,0 +1,138 @@
+---
+title: "Class enrollment Data"
+subtitle: "MA132 enrollment prediction"
+author: "Joe Skufca"
+date: "19 Sep 2020"
+output: html_notebook
+---
+
+The goal of this analysis is to be able to predict enrollment into MA132 for Spring 2121, using data from several previous semesters.
+
+Prepare workspace:
+
+## Load packages
+
+We will work primarily within the context of the tidyverse set of packages, with a few additional packages supporting exploratory analysis.
+
+```{r}
+library(tidyverse)
+library(janitor)
+library(readxl)
+library(skimr)
+library(summarytools)
+```
+
+## Data
+
+
+The data source is a peoplesoft query as developed by the registrar, downloaded into an xlsx format, providing enrollment numbers for several semesters.
+
+### Read the data
+
+```{r}
+dfa= read_excel("CU_ACAD_DEPT_ENRL.xlsx") %>% clean_names()
+```
+
+We summarize that dataframe to identify data types, missing data, et cetera.
+
+```{r}
+skim(dfa)
+```
+```{r}
+glimpse(dfa)
+```
+### Tidy the data
+
+Most things look OK --- not unexpected in that Peoplesoft is a pretty strict database.  However, maybe "term2" is actually two variables, as we will want to distinguish between fall semesters and spring semesters.  As such, we will recompute.
+
+```{r}
+dfa1=dfa %>% separate(term2,into=c("semester","year"),sep=" ")
+```
+
+### Subsetting to data of interest.
+
+
+Based on the intial look at the data, we will eliminate some of the data not required for this analysis:
+
+Variables:
+
+* acad_org and current_status have only one value --- useless.
+* course_id  not required  - redundant to other data
+* instructor   we assume this analysis does not depend upon instructor assigned, but we will keep for now.
+
+Filtering rows:
+
+Although future course enrollments (MA231) are correlated with MA132, we do not have that data available (in a predictive sense) for the students taking MA132 next semester.  The key indicator would likely be the number of students enrolled in MA131 in the fall.   Fall MA132 enrollments might be some indicator (as some of those students will fail).   Summer enrollments seem not to be predictive.
+
+We will filter to:
+
+* MA131 sections (fall and spring)
+* MA132 sections (fall and spring)
+
+
+```{r}
+dfb=dfa1 %>% select(-acad_org,-current_status,-course_id) %>%  
+  filter(subject=="MA",catalog %in% c("131","132"), semester %in% c("Fall","Spring"))
+```
+
+### Cleaning
+
+Here we will further refine the data and make sure that it's "type" is what we want.
+
+I make the following refinemnts:
+
+* I only want data on lectures.
+* As there is only 1 unique value (now), I no longer need `subject` or `component`, and `title` is redundant (I can remember these two.)
+* For now, I will ignore instructor, so I remove from dataset
+* I see that some rows are duplicated (because they had more than one instructor), so I keep only distinct rows
+* `year` should be numeric
+
+```{r}
+dfc=dfb %>% filter(component=="LEC") %>%
+  select(-c(subject,component,title,instructor)) %>%
+  distinct() %>%
+  mutate(year=as.numeric(year))
+```
+
+I am primarily interested in total course enrollment, so I want to summarize across all sections for any given term.  I will designate as a new dataframe, so that I can revisit by section, if so desired
+
+```{r}
+dfc2=dfc %>% group_by(catalog,semester,year) %>% summarise(tot_enrl=sum(tot_enrl))
+```
+
+## Some initial exploration graphs
+
+Some questions
+
+##### Is Spring enrollment stable?  How much does it very over time?
+
+```{r}
+dfc2 %>% filter(catalog=="132",semester=="Spring") %>% 
+  ggplot(aes(x=year,y=tot_enrl)) +
+  geom_col()
+```
+
+Largest difference is over 100 students --- more than a full section.
+
+##### Is spring enrollment correlated with fall MA131?
+
+In order to compare using a scatterplot, I will need to make a "wide" dataframe.
+
+Additional, I want to consider the "previous" fall, so we add a column to the dataframe which is lagged.  
+
+We remove 2021, as there is no valid data.
+
+```{r}
+dfc3=dfc2 %>% pivot_wider(values_from = tot_enrl,names_from=c(semester,catalog)) %>% 
+  clean_names() %>%
+  mutate(prev_131_fall=lag(fall_131),prev_132_fall=lag(fall_132)) %>% 
+  filter(year!=2021)
+```
+
+```{r}
+dfc3 %>% ggplot(aes(x=prev_131_fall,y=spring_132)) +geom_point()
+```
+
+
+
+

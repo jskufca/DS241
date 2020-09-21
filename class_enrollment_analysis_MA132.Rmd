@@ -1,0 +1,79 @@
+---
+title: "Class enrollment Data"
+subtitle: "MA132 enrollment prediction"
+author: "Joe Skufca"
+date: "19 Sep 2020"
+output: html_notebook
+---
+
+The goal of this analysis is to be able to predict enrollment into MA132 for Spring 2121, using data from several previous semesters.
+
+Prepare workspace:
+
+## Load packages
+
+We will work primarily within the context of the tidyverse set of packages, with a few additional packages supporting exploratory analysis.
+
+```{r}
+library(tidyverse)
+library(janitor)
+library(readxl)
+library(skimr)
+library(summarytools)
+```
+
+## Data
+
+
+The data source is a peoplesoft query as developed by the registrar, downloaded into an xlsx format, providing enrollment numbers for several semesters.
+
+### Read the data
+
+```{r}
+dfa= read_excel("CU_ACAD_DEPT_ENRL.xlsx") %>% clean_names()
+```
+
+We summarize that dataframe to identify data types, missing data, et cetera.
+
+```{r}
+skim(dfa)
+```
+```{r}
+glimpse(dfa)
+```
+### Tidy the data
+
+Most things look OK --- not unexpected in that Peoplesoft is a pretty strict database.  However, maybe "term2" is actually two variables, as we will want to distinguish between fall semesters and spring semesters.  As such, we will recompute.
+
+```{r}
+dfa1=dfa %>% separate(term2,into=c("semester","year"),sep=" ")
+```
+
+### Subsetting to data of interest.
+
+
+Based on the intial look at the data, we will eliminate some of the data not required for this analysis:
+
+Variables:
+
+* acad_org and current_status have only one value --- useless.
+* course_id  not required  - redundant to other data
+* instructor   we assume this analysis does not depend upon instructor assigned, but we will keep for now.
+
+Filtering rows:
+
+Although future course enrollments (MA231) are correlated with MA132, we do not have that data available (in a predictive sense) for the students taking MA132 next semester.  The key indicator would likely be the number of students enrolled in MA131 in the fall.   Fall MA132 enrollments might be some indicator (as some of those students will fail).   Summer enrollments seem not to be predictive.
+
+We will filter to:
+
+* MA131 sections (fall and spring)
+* MA132 sections (fall and spring)
+
+
+```{r}
+dfb=dfa1 %>% select(-acad_org,-current_status,-course_id) %>%  
+  filter(subject=="MA",catalog %in% c("131","132"), semester %in% c("Fall","Spring"))
+```
+
+### Cleaning
+
