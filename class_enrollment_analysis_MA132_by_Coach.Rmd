@@ -16,6 +16,7 @@ We will work primarily within the context of the tidyverse set of packages, with
 
 ```{r}
 library(tidyverse)
+library(plotly)
 library(janitor)
 library(readxl)
 library(skimr)
@@ -30,7 +31,13 @@ The data source is a peoplesoft query as developed by the registrar, downloaded 
 ### Read the data
 
 ```{r}
-dfa= read_excel("CU_ACAD_DEPT_ENRL.xlsx") %>% clean_names()
+# dfa= read_excel("CU_ACAD_DEPT_ENRL.xlsx") %>% clean_names() #original
+
+
+dfa= read_excel("CU_ACAD_DEPT_WHEN_OFF_ENRL_4536.xlsx") %>% clean_names() %>% #new data
+  rename(term=term_7,term2=term_8)
+
+
 ```
 
 We summarize that dataframe to identify data types, missing data, et cetera.
@@ -133,6 +140,10 @@ dfc3=dfc2 %>% pivot_wider(values_from = tot_enrl,names_from=c(semester,catalog))
 dfc3 %>% ggplot(aes(x=prev_131_fall,y=spring_132)) +geom_point()
 ```
 
+```{r}
+p=dfc3 %>% ggplot(aes(x=prev_131_fall,y=spring_132,label=year,color=(year<=2015))) +geom_point()
+ggplotly(p)
+```
 
 
 
