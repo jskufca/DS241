@@ -20,6 +20,7 @@ library(janitor)
 library(readxl)
 library(skimr)
 library(summarytools)
+library(lubridate)
 ```
 
 ## Data
@@ -46,5 +47,132 @@ glimpse(dfa)
 dfa %>% filter(duration_min<50,duration_min>1) %>% 
   ggplot(aes(x=duration_min)) + geom_histogram(bins = 300)+facet_wrap(~dayofweek)
 ```
+
+```{r}
+dfa %>%  slice_sample(n=1000) %>% arrange(started_at)
+```
+
+### Cleaning
+
+Limit to durations that are positive and rentals less that 5 hours.
+
+```{r}
+dfb=dfa %>% filter(duration_min>0,duration_min<300,month(ended_at)==8)
+```
+
+
+Can a scatterplot be revealing?
+
+```{r}
+dfb %>% filter(mday(started_at)==3,duration_min<60) %>% ggplot(aes(x=started_at,y=duration_min))+geom_point(alpha=.1) 
+```
+
+### Riders vs time
+
+Let's try to construct a dataframe that could track number of riders (at any instant in time), where we will assume (not reasonably) that there were no riders at 00:00.
+
+
+I will develop (and test) the logic on a small set of data.
+
+```{r}
+dfe=dfb %>% filter(mday(started_at)==3) %>% slice_sample(n=100)
+```
+
+Now lets build a process:
+
+#### Designing an algorithm
+
+I think we only need start and end times.
+
+```{r}
+dfe %>% select(start=started_at,end=ended_at)
+```
+Create a long dataset
+
+```{r}
+dfe %>% select(start=started_at,end=ended_at) %>%
+  pivot_longer(start:end) 
+```
+Pick good names, then order by time.
+
+```{r}
+dfe %>% select(start=started_at,end=ended_at) %>%
+  pivot_longer(start:end, names_to="type",values_to="t") %>% arrange(t)
+```
+
+I want to build a counter to track riders, where each "start" increases the count, and each end "decrease" the count.
+
+```{r}
+dfe %>% select(start=started_at,end=ended_at) %>%
+  pivot_longer(start:end, names_to="type",values_to="t") %>% arrange(t) %>%
+  mutate(increment=case_when(
+   type=="start"~1,
+   type=="end" ~ -1
+  )) 
+```
+
+Now lets cummulative sum that column.
+
+```{r}
+dfe %>% select(start=started_at,end=ended_at) %>%
+  pivot_longer(start:end, names_to="type",values_to="t") %>% arrange(t) %>%
+  mutate(increment=case_when(
+   type=="start"~1,
+   type=="end" ~ -1
+  )) %>%
+  mutate(riders=cumsum(increment))
+```
+I think that is what I need.  I will keep that result as `dfe2`.
+
+```{r}
+dfe2=dfe %>% select(start=started_at,end=ended_at) %>%
+  pivot_longer(start:end, names_to="type",values_to="t") %>% arrange(t) %>%
+  mutate(increment=case_when(
+   type=="start"~1,
+   type=="end" ~ -1
+  )) %>%
+  mutate(riders=cumsum(increment))
+```
+
+
+Let's visualize.
+
+```{r}
+dfe2 %>% ggplot(aes(t,riders)) + geom_step()
+```
+Now ... let's examine all the data for August 3rd.  I simply need to drop in the dataframe for August 3rd into my chain.
+
+
+```{r}
+plot_riders <- function(dfb) {
+  dfb  %>% select(start=started_at,end=ended_at) %>%
+    pivot_longer(start:end, names_to="type",values_to="t") %>% arrange(t) %>%
+    mutate(increment=case_when(
+     type=="start"~1,
+     type=="end" ~ -1
+    )) %>%
+    mutate(riders=cumsum(increment))  %>% 
+    ggplot(aes(t,riders)) + geom_step()
+}
+```
+
+```{r}
+plot_riders(dfb %>% filter(mday(started_at)==2))
+```
+
+A crazy try:
+
+```{r}
+dfb %>% select(start=started_at,end=ended_at) %>%
+  pivot_longer(start:end, names_to="type",values_to="t") %>% arrange(t) %>%
+  mutate(increment=case_when(
+   type=="start"~1,
+   type=="end" ~ -1
+  )) %>%
+  mutate(riders=cumsum(increment)) %>% 
+    ggplot(aes(t,riders)) + geom_step() +
+  facet_wrap(~mday(t),scales = "free_x",ncol = 7)
+```
+
 
 
