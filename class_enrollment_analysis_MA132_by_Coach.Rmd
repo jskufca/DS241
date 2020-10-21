@@ -31,7 +31,7 @@ The data source is a peoplesoft query as developed by the registrar, downloaded 
 ### Read the data
 
 ```{r}
-# dfa= read_excel("CU_ACAD_DEPT_ENRL.xlsx") %>% clean_names() #original
+#dfa= read_excel("CU_ACAD_DEPT_ENRL.xlsx") %>% clean_names() #original
 
 
 dfa= read_excel("CU_ACAD_DEPT_WHEN_OFF_ENRL_4536.xlsx") %>% clean_names() %>% #new data
@@ -95,7 +95,7 @@ I make the following refinemnts:
 * `year` should be numeric
 
 ```{r}
-dfc=dfb %>% filter(component=="LEC") %>%
+dfc=dfb %>% filter(component=="LEC")%>%
   select(-c(subject,component,title,instructor)) %>%
   distinct() %>%
   mutate(year=as.numeric(year))
@@ -137,7 +137,8 @@ dfc3=dfc2 %>% pivot_wider(values_from = tot_enrl,names_from=c(semester,catalog))
 ```
 
 ```{r}
-dfc3 %>% ggplot(aes(x=prev_131_fall,y=spring_132)) +geom_point()
+dfc3 %>% ggplot(aes(x=prev_131_fall,y=spring_132)) +geom_point()+
+  geom_smooth(method="lm")
 ```
 
 ```{r}
