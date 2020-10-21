@@ -1,0 +1,176 @@
+---
+title: "Analysis of bikeshare data"
+subtitle: "Experiment 01"
+
+author: "Joe Skufca"
+date: "19 Sep 2020"
+output: html_notebook
+---
+
+The goal of this analysis is to continue prelimiary analysis on the bike share data for August 2020 through visualization and summary.  We will try to understand how to summarise data, both from the standpoint of the original data, but also the generated data of number of riders as a function of time.
+
+## Prepare workspace:
+
+#### Load packages
+
+We will work primarily within the context of the tidyverse set of packages, with a few additional packages supporting exploratory analysis.  I have included the `lubridate` package, as we will want to do some work with dates.
+
+```{r}
+library(tidyverse)
+library(janitor)
+library(readxl)
+library(skimr)
+library(summarytools)
+library(lubridate)
+```
+
+I will also set a default theme for my ggplots.
+
+```{r}
+theme_set(theme_minimal())
+```
+
+
+## Data
+
+The orginal source of the data was the csv file 
+
+https://s3.amazonaws.com/capitalbikeshare-data/202008-capitalbikeshare-tripdata.zip
+
+
+### Read the data
+
+I read the original .csv file and add in the variables (mutate) that we did manually when we played with the creation of the data table.   I will call these new variables: `duration_min`, `hour_of_day`.  Also I will add `day of week`, but it won't match the format from excel.
+
+```{r}
+dfa= read_csv("202008-capitalbikeshare-tripdata.csv") %>% 
+  clean_names() %>%
+  mutate(duration=as.numeric((ended_at-started_at)/60),
+         hour_of_day=hour(started_at),
+         day_of_week=wday(started_at,label = T))
+  
+```
+
+
+### Cleaning
+
+Before we do further analysis, we recognize that if the duration is negative, some piece of the time data is corrupt.  Although it sill reduce the size of our dataset, it is very much large enough to permit continued analysis even after removing those rows.
+
+Limit to durations that are positive.
+
+```{r}
+dfb=dfa %>% filter(duration>0)
+```
+
+
+## Riders vs time
+
+In a previous worksheet, we developed the methodology to compute number of bikes that were being uses at any given time.  We apply that methodology here, creating dataframe dfr, where we include the bike type as one of our variables.
+
+
+
+
+```{r}
+dfr=dfb %>% 
+  select(rideable_type,  start=started_at,end=ended_at) %>%
+  pivot_longer(start:end, names_to="type",values_to="t") %>% arrange(t) %>%
+  mutate(increment=case_when(
+   type=="start"~1,
+   type=="end" ~ -1
+  )) %>%
+  mutate(riders=cumsum(increment)) %>% select(-increment)
+```
+
+We verify data quality by plotting.
+
+
+```{r}
+dfr %>% 
+  ggplot(aes(t,riders)) + geom_step() 
+```
+
+I think this is interesting, but I think I can improve using faceting, to separate out for each day of the month.   I will facet by 7 columns so that days of the week are aligned.  For these facets, I use the option "free_x" as each facet is covering a different time range.
+
+It also turns out that the datset includes information from 1,2,3,4 September, which screws things up a bit, so ... I filter to only the month of August.
+
+
+```{r}
+dfr %>% 
+  filter(month(t)==8) %>%
+  ggplot(aes(t,riders)) + geom_step() +
+  facet_wrap(~mday(t),scales = "free_x",ncol = 7)
+```
+
+### Analysis for two types of bikes
+
+
+To consider by type of bike, we will need "cumsum" to be working separately on "electric bikes" and "docked bikes".  Which means:
+
+* We have to include that variable in the dataset, and
+* We will need to group on that variable
+
+We will denote sas dfr2.
+
+For this visualization, although I do the compuation for the whole month,
+I will show only the first 7 days of August.
+
+
+```{r}
+dfr2= dfb %>% 
+ select(rideable_type,start=started_at,end=ended_at) %>%
+  pivot_longer(start:end, names_to="type",values_to="t") %>% arrange(t) %>%
+  mutate(increment=case_when(
+   type=="start"~1,
+   type=="end" ~ -1
+  )) %>%
+  group_by(rideable_type) %>%
+  mutate(riders=cumsum(increment)) %>% select(-increment)
+
+
+
+dfr2 %>% filter(mday(t)<=7,month(t)==8) %>%
+    ggplot(aes(t,riders,color=rideable_type)) + geom_step() +
+  facet_wrap(~mday(t),scales = "free_x",ncol = 7)
+```
+
+### Summarizing ridership.
+
+
+Let's continue with the "ridership" data.
+
+
+Maximum riders at any point in the hour of the week.
+
+```{r}
+dfr %>% group_by(wday(t,label=T),hour(t)) %>% summarise(maxriders=max(riders)) %>% View()
+```
+By week?
+
+```{r}
+dfr %>% group_by(week(t)) %>% summarise(maxriders=mean(riders))
+```
+
+### Summarizing other data
+
+From the original dataframe, maybe we want to understand usage of each station --- how many times was a docked bike picked up at xxxxx.
+
+```{r}
+dfs=dfb %>% count(start_station_id)
+dfe=dfb %>% count(end_station_id)
+
+dfj=full_join(dfs,dfe,by=c("start_station_id"="end_station_id"))
+```
+
+
+Lets compute and then order by mismatch:
+
+```{r}
+dfj2=dfj %>% mutate(net_gain=n.y-n.x) %>% arrange(-net_gain)
+
+dfj2 %>% ggplot(aes(net_gain)) + geom_histogram()
+```
+
+
+
+
+
