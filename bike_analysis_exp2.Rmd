@@ -1,6 +1,6 @@
 ---
 title: "Analysis of bikeshare data"
-subtitle: "Experiment 01"
+subtitle: "Experiment 02"
 
 author: "Joe Skufca"
 date: "19 Sep 2020"
