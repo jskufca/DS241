@@ -1,0 +1,139 @@
+---
+title: "Analysis of bikeshare data"
+subtitle: "Experiment 03"
+
+author: "Joe Skufca"
+date: "30 OCT 2020"
+output: html_notebook
+---
+
+The goal of this analysis is to see if I can merge bikeshare data with spatial data.
+
+## Prepare workspace:
+
+#### Load packages
+
+We will work primarily within the context of the tidyverse set of packages, with a few additional packages supporting exploratory analysis.  I have included the `lubridate` package, as we will want to do some work with dates.
+
+```{r}
+library(sf)
+library(leaflet)
+library(tmap)
+library(tmaptools)
+library(tidyverse)
+library(janitor)
+library(readxl)
+library(skimr)
+library(summarytools)
+library(lubridate)
+```
+
+I will also set a default theme for my ggplots.
+
+```{r}
+theme_set(theme_minimal())
+```
+
+
+## Data
+
+The orginal source of the data was the csv file 
+
+https://s3.amazonaws.com/capitalbikeshare-data/202008-capitalbikeshare-tripdata.zip
+
+
+### Read the  bike data
+
+I read the original .csv file and add in the variables (mutate) that we did manually when we played with the creation of the data table.   I will call these new variables: `duration`, `hour_of_day`.  Also I will add `day_of_week`, but it won't match the format from excel.
+
+```{r}
+
+#url = "https://s3.amazonaws.com/capitalbikeshare-data/202008-capitalbikeshare-tripdata.zip"
+#zip_file <- tempfile(fileext = ".zip")
+#download.file(url, zip_file, mode = "wb")
+dfa= read_csv("202008-capitalbikeshare-tripdata.csv") %>% 
+#dfa=vroom::vroom(zip_file) %>%
+  clean_names() %>%
+  mutate(duration=as.numeric((ended_at-started_at)/60),
+         hour_of_day=hour(started_at),
+         day_of_week=wday(started_at,label = T))
+#unlink(zip_file)  
+```
+
+
+#### Cleaning bike data
+
+Before we do further analysis, we recognize that if the duration is negative, some piece of the time data is corrupt.  Although it sill reduce the size of our dataset, it is very much large enough to permit continued analysis even after removing those rows.
+
+Limit to durations that are positive.
+
+```{r}
+dfb=dfa %>% filter(duration>0)
+```
+
+
+Let's also create a small dataset while we explore possiblities for prociessing.
+
+```{r}
+dfb1=dfb %>% slice_sample(n=1000)
+```
+
+### Read shapefile data
+
+
+```{r}
+census_sf =  st_read("tl_2019_11_tract/tl_2019_11_tract.shp") %>% clean_names()
+```
+
+
+```{r}
+tmap_mode("view")
+tm_shape(census_sf)+tm_polygons(alpha=.3)
+```
+
+
+### Plotting both datasets
+
+Create an sf object from dfb1.
+
+
+```{r}
+bikes1_sf = st_as_sf(dfb1, coords = c("start_lng", "start_lat"), 
+                 crs = 4269, agr = "constant")
+dfbu=dfb %>% mutate(rounded=round(start_lat,7)) %>%  distinct(rounded,.keep_all=T) %>% drop_na()
+bikes_sf = st_as_sf(dfbu , coords = c("start_lng", "start_lat"), 
+                 crs = 4269, agr = "constant")
+
+```
+
+```{r}
+
+tm_shape(bikes_sf)+tm_dots(size=.01,alpha=.2)+
+  tm_shape(census_sf)+tm_polygons(alpha=.3)+
+  tm_basemap( leaflet::providers$OpenStreetMap )
+```
+
+
+
+### Can I do a spatial join
+
+
+Leftjoin of bikes1 with census tract
+
+```{r}
+dfj=st_join(bikes1_sf,census_sf,join=st_within)
+
+dfj2 =st_join(census_sf,bikes_sf,join=st_contains) %>% count(name) 
+
+dfj2 %>% tm_shape()  +tm_polygons("n",alpha=.6)+
+  tm_basemap( leaflet::providers$OpenStreetMap )
+
+```
+
+
+
+
+
+
+
+
