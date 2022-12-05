@@ -41,3 +41,17 @@ taskscheduler_stop("mybiketask")
 ```{r}
 taskscheduler_delete("mybiketask")
 ```
+
+
+# Reading the data
+```{r}
+dfc=read_csv(here::here("f2022","data","likelog.csv")) %>%
+  mutate(station_id=as.character(station_id),datetime=last_updated) 
+```
+
+```{r}
+dfc %>% filter(station_id=="102",
+               day(datetime)>"2022-12-50 07:00:00",) %>% ggplot(aes(datetime,num_bikes_available)) + geom_step()+
+  theme_minimal()
+```
+
