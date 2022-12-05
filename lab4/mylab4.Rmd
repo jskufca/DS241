@@ -1,0 +1,174 @@
+---
+title: "Lab 4: La Quinta"
+author: "Coach Skufca"
+date: "2202-10-17"
+output: html_notebook
+---
+
+This notebook attempts Lab 4 of dsbox: https://datasciencebox.org/course-materials/lab-instructions/lab-04/lab-04-viz-sp-data.html , with a goal of preparing for class.
+
+### Packages
+
+```{r}
+library(tidyverse)
+library(dsbox)
+```
+
+### Data
+
+Load states.  I had to copy from another folder where I had the whole dsbox installed.
+
+```{r}
+states <- read_csv("lab4/states.csv")
+```
+
+Lad the Dennys and La Quinta datasets:
+
+```{r}
+dennys=dennys
+laquinta=laquinta
+```
+
+## Exercises
+
+### Exercise 1
+What are the dimensions of the Denny’s dataset? (Hint: Use inline R code and functions like nrow and ncol to compose your answer.) What does each row in the dataset represent? What are the variables?
+
+```{r}
+nrow(dennys)
+ncol(dennys)
+names(dennys)
+```
+
+### Exercise 2
+What are the dimensions of the La Quinta’s dataset? What does each row in the dataset represent? What are the variables?
+```{r}
+nrow(laquinta)
+ncol(laquinta)
+names(laquinta)
+```
+
+### Exercise 3
+
+Take a look at the websites that the data come from (linked above). Are there any La Quinta’s locations outside of the US? If so, which countries? What about Denny’s?
+
+*There are no Dennys outside US, but there are La Quintas in Columbia, Chile, UAE, Turkey, New Zealand, China, Mexico, and Canada.
+
+### Exercise 4
+
+Now take a look at the data. What would be some ways of determining whether or not either establishment has any locations outside the US using just the data (and not the websites). Don’t worry about whether you know how to implement this, just brainstorm some ideas. Write down at least one as your answer, but you’re welcomed to write down a few options too.
+
+1. A zipcode listing for valide US zipcodes.
+2. Check long/lat and see if it falls inside US.
+3. Check state for being in a valid list of US state 2 letter abbreviations.
+
+### Exercise 5
+
+Find the Denny’s locations that are outside the US, if any. To do so, filter the Denny’s locations for observations where state is not in states$abbreviation. The code for this is given below. Note that the %in% operator matches the states listed in the state variable to those listed in states$abbreviation. The ! operator means not. Are there any Denny’s locations outside the US?
+
+```{r}
+df5=dennys %>% filter(!(state %in% states$abbreviation))
+```
+
+Confirms no Dennys outside US.
+
+### Exercise 6
+
+Add a country variable to the Denny’s dataset and set all observations equal to "United States". Remember, you can use the mutate function for adding a variable. Make sure to save the result of this as dennys again so that the stored data frame contains the new variable going forward.
+
+```{r}
+dennys=dennys %>%
+  mutate(country = "United States")
+```
+
+### Exercise 7
+
+Find the La Quinta locations that are outside the US, and figure out which country they are in. This might require some googling. Take notes, you will need to use this information in the next exercise.
+
+*There are La Quintas in Columbia, Chile, UAE, Turkey, New Zealand, China, Mexico, and Canada.*
+
+
+### Exercise 8
+
+Add a country variable to the La Quinta dataset. Use the case_when function to populate this variable. You’ll need to refer to your notes from Exercise 7 about which country the non-US locations are in. Here is some starter code to get you going:
+
+
+```{r}
+laquinta=laquinta %>%
+  mutate(country = case_when(
+    state %in% state.abb     ~ "United States",
+    state %in% c("ON", "BC") ~ "Canada",
+    state == "ANT"           ~ "Colombia",
+    state %in% c("AG","CH","NL","PU","QR","SL","VE")       ~ "Mexico",
+    state =="FM"   ~ "Honduras"
+                        # fill in the rest
+  ))
+```
+
+```{r}
+laquinta <- laquinta %>%
+  filter(country == "United States")
+```
+
+
+### Exercise 9
+
+Which states have the most and fewest Denny’s locations? What about La Quinta? Is this surprising? Why or why not?
+
+```{r}
+df9_d=dennys %>% count(state) %>%
+  inner_join(states, by = c("state" = "abbreviation")) %>% arrange(desc(n))
+```
+
+
+```{r}
+df9_q=laquinta %>% count(state) %>%
+  inner_join(states, by = c("state" = "abbreviation")) %>% arrange(desc(n))
+```
+
+### Exercise 10
+
+Which states have the most Denny’s locations per thousand square miles? What about La Quinta?
+
+```{r}
+df9_d %>% mutate(per_area=n/area) %>% arrange(desc(per_area))
+```
+```{r}
+df9_q %>% mutate(per_area=n/area) %>% arrange(desc(per_area))
+```
+### Dataset preps
+
+Add `establishment` so that we can build a combined dataset.
+```{r}
+dennys <- dennys %>%
+  mutate(establishment = "Denny's")
+laquinta <- laquinta %>%
+  mutate(establishment = "La Quinta")
+```
+
+```{r}
+dn_lq <- bind_rows(dennys, laquinta)
+
+ggplot(dn_lq, mapping = aes(x = longitude, y = latitude, color = establishment)) +
+  geom_point()
+```
+
+
+### Exercise 11
+
+Filter the data for observations in North Carolina only, and recreate the plot. You should also adjust the transparency of the points, by setting the alpha level, so that it’s easier to see the overplotted ones. Visually, does Mitch Hedberg’s joke appear to hold here?
+
+```{r}
+dn_lq %>% filter(state=="NC") %>% 
+  ggplot(mapping = aes(x = longitude, y = latitude, color = establishment)) +
+  geom_point(alpha=.4)
+```
+
+### Exercise 12
+Now filter the data for observations in Texas only, and recreate the plot, with an appropriate alpha level. Visually, does Mitch Hedberg’s joke appear to hold here?
+
+```{r}
+dn_lq %>% filter(state=="TX") %>% 
+  ggplot(mapping = aes(x = longitude, y = latitude, color = establishment)) +
+  geom_point(alpha=.4)
+```

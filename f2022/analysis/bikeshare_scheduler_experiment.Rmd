@@ -1,0 +1,43 @@
+---
+title: "Bikeshare scheduler experiment"
+author: "Coach Skufca"
+date: "2022-12-04"
+output: html_notebook
+---
+
+Purpose: We will set up a scheduled pull of bikeshare data to collect data every minute, where we will collect on 5 stations (ids  101 through 105) in DC.
+
+
+## Packages
+
+```{r}
+library(tidyverse)
+library(janitor)
+library(lubridate)
+library(taskscheduleR)
+```
+
+To support the taskscheduleR, I have added Rscipts.exe to system path.
+
+## A short test
+
+```{r}
+myscript="E:/Dropbox/Rwork/DS241/f2022/R/readbike.R"
+
+taskscheduler_create(taskname = "mybiketask", rscript = myscript, 
+ schedule = "MINUTE", starttime = "20:00", 
+ schtasks_extra=" /et 08:44 /ed 12/05/2022",
+ Rexe="Rscript.exe"
+ )
+
+```
+## To stop
+
+```{r}
+taskscheduler_stop("mybiketask")
+```
+
+
+```{r}
+taskscheduler_delete("mybiketask")
+```
